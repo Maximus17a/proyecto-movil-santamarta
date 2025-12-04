@@ -1,4 +1,4 @@
-import { supabase, logSupabaseOperation } from './supabaseClient';
+import { supabase, supabaseWrapper, cacheUtils, logSupabaseOperation } from './supabaseClient';
 
 /**
  * Obtener pedidos asignados al repartidor
@@ -18,12 +18,19 @@ export const getAssignedOrders = async (repartidorId = null) => {
 
     console.log('📦 Obteniendo pedidos asignados para repartidor:', delivererId);
 
+    // Optimización: Campos específicos para lista de pedidos asignados
     const result = await supabase
       .from('pedidos')
       .select(`
-        *,
+        id,
+        estado,
+        total,
+        created_at,
+        cliente_id,
         detalles_pedido (
-          *,
+          id,
+          cantidad,
+          precio_unitario,
           productos (nombre, precio)
         ),
         perfiles!pedidos_cliente_id_fkey (nombre_completo),
@@ -31,7 +38,8 @@ export const getAssignedOrders = async (repartidorId = null) => {
       `)
       .eq('repartidor_id', delivererId)
       .in('estado', ['confirmado', 'en_camino'])
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(20); // Límite para evitar consultas muy grandes
 
     console.log('✅ Pedidos asignados obtenidos:', result.data?.length || 0);
     logSupabaseOperation('Obtener pedidos asignados', result);
@@ -49,20 +57,25 @@ export const getAvailableOrders = async () => {
   try {
     console.log('📦 Obteniendo pedidos disponibles para asignar');
 
+    // Optimización: Campos esenciales para pedidos disponibles
     const result = await supabase
       .from('pedidos')
       .select(`
-        *,
+        id,
+        total,
+        created_at,
+        cliente_id,
         detalles_pedido (
-          *,
-          productos (nombre, precio)
+          cantidad,
+          productos (nombre)
         ),
         perfiles!pedidos_cliente_id_fkey (nombre_completo),
         direcciones (direccion_completa)
       `)
       .is('repartidor_id', null)
       .eq('estado', 'pendiente')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(10); // Límite más estricto para pedidos disponibles
 
     console.log('✅ Pedidos disponibles obtenidos:', result.data?.length || 0);
     logSupabaseOperation('Obtener pedidos disponibles', result);
@@ -227,14 +240,15 @@ export const updateDeliveryLocation = async (orderId, repartidorId, latitude, lo
  */
 export const getDeliveryHistory = async (repartidorId, limit = 50) => {
   try {
+    // Optimización: Solo campos necesarios para historial
     const result = await supabase
       .from('pedidos')
       .select(`
-        *,
-        detalles_pedido (
-          *,
-          productos (nombre, precio)
-        ),
+        id,
+        estado,
+        total,
+        created_at,
+        updated_at,
         perfiles!pedidos_cliente_id_fkey (nombre_completo)
       `)
       .eq('repartidor_id', repartidorId)

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -7,16 +7,35 @@ import { theme } from '../theme';
 // Navegadores
 import AuthNavigator from './AuthNavigator';
 
-// Pantallas del cliente
-import HomeScreen from '../screens/cliente/HomeScreen';
-import ProductDetailScreen from '../screens/cliente/ProductDetailScreen';
-import CheckoutScreen from '../screens/cliente/CheckoutScreen';
+// Lazy Loading de pantallas del cliente
+const HomeScreen = React.lazy(() => import('../screens/cliente/HomeScreen'));
+const ProductDetailScreen = React.lazy(() => import('../screens/cliente/ProductDetailScreen'));
+const CheckoutScreen = React.lazy(() => import('../screens/cliente/CheckoutScreen'));
 
-// Pantallas del repartidor
-import DeliveriesScreen from '../screens/repartidor/DeliveriesScreen';
-import TrackingScreen from '../screens/repartidor/TrackingScreen';
+// Lazy Loading de pantallas del repartidor  
+const DeliveriesScreen = React.lazy(() => import('../screens/repartidor/DeliveriesScreen'));
+const TrackingScreen = React.lazy(() => import('../screens/repartidor/TrackingScreen'));
 
 const Stack = createStackNavigator();
+
+// Componente de carga para Suspense
+const LazyLoadingFallback = () => (
+  <View style={{ 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: theme.colors.primary 
+  }}>
+    <ActivityIndicator size="large" color="white" />
+  </View>
+);
+
+// Wrapper para componentes lazy con Suspense
+const withSuspense = (Component) => (props) => (
+  <Suspense fallback={<LazyLoadingFallback />}>
+    <Component {...props} />
+  </Suspense>
+);
 
 const AppNavigator = () => {
   const { isAuthenticated, loading, user, profile, profileLoading } = useAuth();
@@ -72,7 +91,7 @@ const AppNavigator = () => {
       >
         <Stack.Screen 
           name="Deliveries" 
-          component={DeliveriesScreen}
+          component={withSuspense(DeliveriesScreen)}
           options={{ 
             title: 'Mis Entregas',
             headerLeft: null, // Evitar botón de atrás
@@ -80,7 +99,7 @@ const AppNavigator = () => {
         />
         <Stack.Screen 
           name="Tracking" 
-          component={TrackingScreen}
+          component={withSuspense(TrackingScreen)}
           options={{ title: 'Detalles de Entrega' }}
         />
       </Stack.Navigator>
@@ -104,7 +123,7 @@ const AppNavigator = () => {
       {/* Navegación para clientes */}
       <Stack.Screen 
         name="Home" 
-        component={HomeScreen}
+        component={withSuspense(HomeScreen)}
         options={{ 
           title: 'Farmacia Santa Marta',
           headerLeft: null, // Evitar botón de atrás
@@ -112,12 +131,12 @@ const AppNavigator = () => {
       />
       <Stack.Screen 
         name="ProductDetail" 
-        component={ProductDetailScreen}
+        component={withSuspense(ProductDetailScreen)}
         options={{ title: 'Detalles del Producto' }}
       />
       <Stack.Screen 
         name="Checkout" 
-        component={CheckoutScreen}
+        component={withSuspense(CheckoutScreen)}
         options={{ title: 'Finalizar Pedido' }}
       />
     </Stack.Navigator>

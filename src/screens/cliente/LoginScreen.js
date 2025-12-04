@@ -8,6 +8,7 @@ import {
   Alert,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -116,7 +117,11 @@ export default function LoginScreen() {
           {/* Sección del encabezado */}
           <View style={styles.headerSection}>
             <View style={styles.logoContainer}>
-              <Ionicons name="medical" size={80} color="white" />
+              <Image 
+                source={require('../../../assets/logo-farmacia-santa-marta..png')} 
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.appTitle}>Farmacia Santa Marta</Text>
             <Text style={styles.appSubtitle}>
@@ -222,7 +227,7 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: 120,
     height: 120,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
@@ -235,6 +240,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
   },
   appTitle: {
     fontSize: 32,

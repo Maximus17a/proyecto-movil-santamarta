@@ -1,110 +1,133 @@
-import { supabase, logSupabaseOperation } from './supabaseClient';
+import { supabase, supabaseWrapper, cacheUtils, logSupabaseOperation } from './supabaseClient';
 
 /**
  * Obtener todos los productos disponibles
  */
 export const getProducts = async (filters = {}) => {
-  try {
-    console.log('📦 Obteniendo productos con filtros:', filters);
-    
-    let query = supabase
-      .from('productos')
-      .select(`
-        *,
-        categorias(nombre)
-      `);
-      
-    // Si no se especifica explícitamente, incluir productos con stock > 0
-    if (filters.includeOutOfStock !== true) {
-      query = query.gt('stock', 0);
-      console.log('📦 Filtrando solo productos con stock disponible');
-    }
-
-    // Aplicar filtros opcionales
-    if (filters.categoria_id) {
-      query = query.eq('categoria_id', filters.categoria_id);
-    }
-
-    if (filters.search) {
-      query = query.or(`nombre.ilike.%${filters.search}%,descripcion.ilike.%${filters.search}%`);
-    }
-
-    if (filters.limit) {
-      query = query.limit(filters.limit);
-    }
-
-    // Ordenar por nombre por defecto
-    query = query.order('nombre');
-
-    const result = await query;
-    
-    if (result.data) {
-      console.log(`✅ Productos obtenidos: ${result.data.length} productos encontrados`);
-      console.log('📊 Stock disponible:', result.data.map(p => ({ nombre: p.nombre, stock: p.stock })));
-    }
-    
-    logSupabaseOperation('Obtener productos', result);
-    return result;
-  } catch (error) {
-    console.error('❌ Error en getProducts:', error);
-    return { error };
+  // Generar clave de caché basada en filtros
+  const cacheKey = cacheUtils.generateKey('products', 
+    JSON.stringify(filters), 
+    filters.includeOutOfStock ? 'all' : 'instock'
+  );
+  
+  // Intentar obtener del caché (TTL: 10 minutos para productos)
+  const cached = await cacheUtils.get(cacheKey, 10 * 60 * 1000);
+  if (cached) {
+    return { data: cached, error: null, fromCache: true };
   }
+  
+  // Optimización: Seleccionar solo campos necesarios para reducir transferencia de datos
+  let query = supabase
+    .from('productos')
+    .select(`
+      id,
+      nombre,
+      descripcion,
+      precio,
+      stock,
+      imagen_url,
+      categoria_id,
+      categorias!inner(nombre)
+    `);
+    
+  // Si no se especifica explícitamente, incluir productos con stock > 0
+  if (filters.includeOutOfStock !== true) {
+    query = query.gt('stock', 0);
+  }
+
+  // Aplicar filtros opcionales
+  if (filters.categoria_id) {
+    query = query.eq('categoria_id', filters.categoria_id);
+  }
+
+  if (filters.search) {
+    query = query.or(`nombre.ilike.%${filters.search}%,descripcion.ilike.%${filters.search}%`);
+  }
+
+  if (filters.limit) {
+    query = query.limit(filters.limit);
+  }
+
+  // Ordenar por nombre por defecto
+  query = query.order('nombre');
+
+  const result = await supabaseWrapper.select('Obtener productos', query);
+  
+  // Guardar en caché si fue exitoso
+  if (result.data && !result.error) {
+    await cacheUtils.set(cacheKey, result.data);
+  }
+  
+  return result;
 };
 
 /**
  * Obtener un producto específico por ID
  */
 export const getProductById = async (productId, includeOutOfStock = false) => {
-  try {
-    console.log('🔍 Obteniendo producto por ID:', productId);
-    
-    let query = supabase
-      .from('productos')
-      .select(`
-        *,
-        categorias(nombre)
-      `)
-      .eq('id', productId);
-      
-    // Solo filtrar por stock si no se especifica incluir productos sin stock
-    if (!includeOutOfStock) {
-      query = query.gt('stock', 0);
-    }
-
-    const result = await query.single();
-    
-    if (result.data) {
-      console.log('✅ Producto encontrado:', { 
-        nombre: result.data.nombre, 
-        stock: result.data.stock,
-        precio: result.data.precio
-      });
-    }
-
-    logSupabaseOperation('Obtener producto por ID', result);
-    return result;
-  } catch (error) {
-    console.error('❌ Error en getProductById:', error);
-    return { error };
+  // Caché para productos individuales (TTL: 15 minutos)
+  const cacheKey = cacheUtils.generateKey('product', productId, includeOutOfStock ? 'all' : 'instock');
+  const cached = await cacheUtils.get(cacheKey, 15 * 60 * 1000);
+  
+  if (cached) {
+    return { data: cached, error: null, fromCache: true };
   }
+  
+  // Optimización: Campos específicos para producto individual
+  let query = supabase
+    .from('productos')
+    .select(`
+      id,
+      nombre,
+      descripcion,
+      precio,
+      stock,
+      imagen_url,
+      categoria_id,
+      categorias!inner(nombre)
+    `)
+    .eq('id', productId);
+    
+  // Solo filtrar por stock si no se especifica incluir productos sin stock
+  if (!includeOutOfStock) {
+    query = query.gt('stock', 0);
+  }
+
+  const result = await supabaseWrapper.select('Obtener producto por ID', query.single());
+  
+  // Guardar en caché si fue exitoso
+  if (result.data && !result.error) {
+    await cacheUtils.set(cacheKey, result.data);
+  }
+  
+  return result;
 };
 
 /**
  * Obtener categorías de productos
  */
 export const getCategories = async () => {
-  try {
-    const result = await supabase
-      .from('categorias')
-      .select('id, nombre')
-      .order('nombre');
-
-    logSupabaseOperation('Obtener categorías', result);
-    return result;
-  } catch (error) {
-    console.error('❌ Error en getCategories:', error);
-    return { error };
+  // Caché para categorías (TTL: 1 hora - cambian poco)
+  const cacheKey = cacheUtils.generateKey('categories');
+  const cached = await cacheUtils.get(cacheKey, 60 * 60 * 1000); // 1 hora
+  
+  if (cached) {
+    return { data: cached, error: null, fromCache: true };
   }
+
+  const query = supabase
+    .from('categorias')
+    .select('id, nombre')
+    .order('nombre');
+
+  const result = await supabaseWrapper.select('Obtener categorías', query);
+  
+  // Guardar en caché si fue exitoso
+  if (result.data && !result.error) {
+    await cacheUtils.set(cacheKey, result.data);
+  }
+  
+  return result;
 };
 
 /**
@@ -222,13 +245,20 @@ export const getUserOrders = async (userId = null, limit = 20) => {
  */
 export const getOrderDetails = async (orderId) => {
   try {
+    // Optimización: Reducir campos anidados para mejorar performance
     const result = await supabase
       .from('pedidos')
       .select(`
-        *,
+        id,
+        estado,
+        total,
+        metodo_pago,
+        created_at,
         detalles_pedido (
-          *,
-          productos (nombre, precio, imagen_url, descripcion)
+          id,
+          cantidad,
+          precio_unitario,
+          productos (nombre, precio, imagen_url)
         ),
         direcciones (direccion_completa),
         perfiles!pedidos_cliente_id_fkey (nombre_completo)

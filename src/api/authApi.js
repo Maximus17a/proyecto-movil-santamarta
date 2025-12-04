@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase, supabaseWrapper, cacheUtils } from './supabaseClient';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -194,78 +194,70 @@ export const getCurrentSession = async () => {
   }
 };
 
-// Cache básico para perfiles (en memoria)
-const profileCache = new Map();
-const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
-
 /**
- * Obtener perfil de usuario con caché básico
+ * Obtener perfil de usuario con caché persistente optimizado
  */
 export const getUserProfile = async (userId, useCache = true) => {
   try {
     console.log('🔍 Buscando perfil para usuario:', userId);
     
-    // 1. Verificar caché en memoria si está habilitado
-    if (useCache && profileCache.has(userId)) {
-      const cached = profileCache.get(userId);
-      if (Date.now() - cached.timestamp < CACHE_EXPIRY) {
-        console.log('⚡ Perfil obtenido del caché');
-        return { data: cached.data, error: null };
-      } else {
-        profileCache.delete(userId); // Limpiar caché expirado
+    // 1. Verificar caché persistente si está habilitado (TTL: 30 minutos)
+    if (useCache) {
+      const cacheKey = cacheUtils.generateKey('profile', userId);
+      const cached = await cacheUtils.get(cacheKey, 30 * 60 * 1000); // 30 minutos
+      
+      if (cached) {
+        console.log('⚡ Perfil obtenido del caché persistente');
+        return { data: cached, error: null, fromCache: true };
       }
     }
     
-    // 2. Consulta a la base de datos con timeout
+    // 2. Consulta a la base de datos con wrapper mejorado
     console.log('🔍 Consultando base de datos...');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos timeout
     
-    try {
-      const { data, error } = await supabase
-        .from('perfiles')
-        .select('*')
-        .eq('id', userId)
-        .abortSignal(controller.signal)
-        .maybeSingle(); // Usar maybeSingle() en lugar de single()
-      
-      clearTimeout(timeoutId);
-      
-      if (error) {
-        console.error('❌ Error al obtener perfil:', error);
-        console.error('📄 Detalles del error:', JSON.stringify(error, null, 2));
-        return { data: null, error };
-      }
-      
-      if (data) {
-        console.log('✅ Perfil encontrado en BD:', data);
-      } else {
-        console.log('⚠️ No se encontró perfil para usuario:', userId);
-      }
-      
-      // 3. Guardar en caché si hay datos
-      if (data && useCache) {
-        profileCache.set(userId, {
-          data,
-          timestamp: Date.now()
-        });
-        console.log('💾 Perfil guardado en caché');
-      }
-      
-      return { data, error: null };
-      
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        console.error('⏱️ Timeout al obtener perfil');
-        return { data: null, error: { message: 'Timeout al cargar perfil de usuario' } };
-      }
-      throw fetchError;
+    const query = supabase
+      .from('perfiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle(); // Usar maybeSingle() para manejar casos sin datos
+    
+    const result = await supabaseWrapper.select('Obtener perfil de usuario', query);
+    
+    // 3. Guardar en caché persistente si hay datos y se permite caché
+    if (result.data && !result.error && useCache) {
+      const cacheKey = cacheUtils.generateKey('profile', userId);
+      await cacheUtils.set(cacheKey, result.data);
+      console.log('💾 Perfil guardado en caché persistente');
     }
+    
+    return result;
     
   } catch (error) {
     console.error('❌ Error inesperado al obtener perfil:', error);
-    return { data: null, error };
+    return { 
+      data: null, 
+      error: {
+        message: 'Error inesperado al obtener perfil',
+        originalError: error.message,
+        timestamp: new Date().toISOString()
+      }
+    };
+  }
+};
+
+/**
+ * Invalidar caché de perfil de usuario
+ * Útil después de actualizaciones del perfil
+ */
+export const invalidateUserProfileCache = async (userId) => {
+  try {
+    const cacheKey = cacheUtils.generateKey('profile', userId);
+    await cacheUtils.invalidate(cacheKey);
+    console.log('🗑️ Caché de perfil invalidado para usuario:', userId);
+    return true;
+  } catch (error) {
+    console.error('❌ Error invalidando caché de perfil:', error);
+    return false;
   }
 };
 
@@ -322,33 +314,34 @@ export const createUserProfile = async (user, additionalData = {}) => {
 
     console.log('📝 Datos del perfil a crear:', profileData);
 
-    const { data, error } = await supabase
+    const query = supabase
       .from('perfiles')
       .upsert(profileData)
       .select()
       .single();
 
-    if (error) {
-      console.error('❌ Error al crear/actualizar perfil:', error);
-      console.error('📄 Detalles del error:', JSON.stringify(error, null, 2));
-      return { data: null, error };
-    }
+    const result = await supabaseWrapper.modify('Crear/actualizar perfil de usuario', query);
 
-    console.log('✅ Perfil creado/actualizado exitosamente:', data);
-    
-    // Actualizar caché después de crear
-    if (data) {
-      profileCache.set(user.id, {
-        data,
-        timestamp: Date.now()
-      });
-      console.log('💾 Perfil guardado en caché');
+    // Invalidar caché anterior y actualizar con nuevos datos
+    if (result.data && !result.error) {
+      await invalidateUserProfileCache(user.id);
+      
+      // Guardar nuevo perfil en caché
+      const cacheKey = cacheUtils.generateKey('profile', user.id);
+      await cacheUtils.set(cacheKey, result.data);
+      console.log('💾 Nuevo perfil guardado en caché persistente');
     }
     
-    return { data, error: null };
+    return result;
   } catch (error) {
     console.error('❌ Error inesperado al crear perfil:', error);
-    console.error('📄 Stack trace:', error.stack);
-    return { data: null, error };
+    return { 
+      data: null, 
+      error: {
+        message: 'Error inesperado al crear perfil',
+        originalError: error.message,
+        timestamp: new Date().toISOString()
+      }
+    };
   }
 };
