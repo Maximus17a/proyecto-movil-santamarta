@@ -1,153 +1,70 @@
-# Farmacia Santa Marta - App Móvil
+# Farmacia Santa Marta - App Móvil (Alineada con Requerimientos Universitarios)
 
-Una aplicación móvil desarrollada con React Native y Expo para la gestión de pedidos de la Farmacia Santa Marta.
+Esta aplicación móvil ha sido desarrollada con **React Native** y **Expo**, optimizada para ser trabajada en **Android Studio** y cumple con los requerimientos técnicos del proyecto programado de la Universidad Latina de Costa Rica.
 
-## 🚀 Características principales
+## 📋 Cumplimiento de Requerimientos (PDF)
+
+La aplicación integra los 5 elementos mínimos requeridos por la plataforma Android:
+
+1.  **Conexión a Internet**: Consumo de servicios en tiempo real a través de **Supabase**.
+2.  **Uso de Almacenamiento**: Persistencia de datos local mediante **AsyncStorage** para el carrito y sesión.
+3.  **GPS y Google Maps**: Implementado en el módulo de repartidor para seguimiento de entregas (`expo-location` y `react-native-maps`).
+4.  **Llamadas Telefónicas**: Funcionalidad de contacto directo con el cliente desde la app del repartidor.
+5.  **Sensores (Acelerómetro/Giroscopio)**: Integrado mediante `expo-sensors` para optimización de la interfaz según el movimiento.
+
+## 🛠️ Configuración para Android Studio
+
+Para trabajar este proyecto en **Android Studio**, sigue estos pasos:
+
+### 1. Preparación del Entorno
+*   Asegúrate de tener instalado **Android Studio** y el **Android SDK**.
+*   Configura las variables de entorno `ANDROID_HOME`.
+*   Instala las dependencias del proyecto:
+    ```bash
+    npm install
+    ```
+
+### 2. Generación de la Carpeta Nativa (Prebuild)
+Como este es un proyecto Expo, para verlo "alineado" con Android Studio debes generar la carpeta `android`:
+```bash
+npx expo prebuild
+```
+*Esto creará la carpeta `/android` que puedes abrir directamente con Android Studio.*
+
+### 3. Ejecución en Android Studio
+*   Abre Android Studio.
+*   Selecciona **"Open an Existing Project"** y navega hasta la carpeta `android` generada.
+*   Deja que Gradle sincronice el proyecto.
+*   Puedes ejecutar la app directamente en un emulador o dispositivo físico desde el botón "Run" de Android Studio.
+
+## 🚀 Características del Sistema
 
 ### Para Clientes 🧑‍💻
-- **Catálogo de productos**: Navega por todos los medicamentos disponibles
-- **Búsqueda y filtros**: Encuentra productos por nombre o categoría
-- **Carrito de compras**: Agrega productos y gestiona tu pedido
-- **Proceso de pedido**: Completa tu orden con información de entrega
-- **Autenticación**: Registro e inicio de sesión seguro
+*   **Catálogo de productos**: Navegación por medicamentos.
+*   **Carrito de compras**: Gestión de pedidos con persistencia local.
+*   **Autenticación**: Registro e inicio de sesión seguro con Supabase.
 
 ### Para Repartidores 🛵
-- **Dashboard de entregas**: Ve todos tus pedidos asignados
-- **Pedidos disponibles**: Acepta nuevos pedidos para entregar
-- **Seguimiento en tiempo real**: Actualiza el estado de las entregas
-- **Comunicación directa**: Llama al cliente desde la app
-- **Navegación integrada**: Abre direcciones en Google Maps
-- **Estadísticas**: Ve tu rendimiento y ganancias
+*   **Seguimiento en tiempo real**: Uso de GPS para la ruta de entrega.
+*   **Comunicación**: Botón de llamada rápida al cliente.
+*   **Mapas**: Visualización de la ubicación de entrega.
 
-## 🛠️ Tecnologías utilizadas
+## 📂 Estructura del Proyecto
 
-- **React Native**: Framework principal
-- **Expo**: Plataforma de desarrollo
-- **React Navigation**: Navegación entre pantallas
-- **Supabase**: Backend y base de datos
-- **Expo Location**: Servicios de geolocalización
-- **AsyncStorage**: Almacenamiento local
+*   `src/api/`: Lógica de conexión con Supabase.
+*   `src/components/`: Componentes visuales reutilizables.
+*   `src/context/`: Manejo de estado global (Auth).
+*   `src/screens/`: Pantallas divididas por roles (Cliente/Repartidor).
+*   `android/`: (Generada tras prebuild) Código nativo para Android Studio.
 
-## 📱 Instalación y configuración
-
-### Prerrequisitos
-- Node.js (versión 16 o superior)
-- npm o yarn
-- Expo CLI: `npm install -g @expo/cli`
-- Dispositivo móvil con la app Expo Go o emulador
-
-### Pasos de instalación
-
-1. **Clonar el repositorio**
-   ```bash
-   git clone [url-del-repositorio]
-   cd proyecto-movil-santamarta
-   ```
-
-2. **Instalar dependencias**
-   ```bash
-   npm install
-   ```
-
-3. **Configurar variables de entorno**
-   Edita el archivo `.env` con tus credenciales de Supabase:
-   ```
-   EXPO_PUBLIC_SUPABASE_URL=tu_url_de_supabase
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anonima
-   EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=tu_api_key_maps
-   ```
-
-4. **Iniciar el servidor de desarrollo**
-   ```bash
-   npm start
-   ```
-
-5. **Ejecutar en dispositivo**
-   - Escanea el código QR con Expo Go (Android/iOS)
-   - O usa un emulador: `npm run android` o `npm run ios`
-
-## 📂 Estructura del proyecto
-
-```
-src/
-├── api/                    # Servicios de API (Supabase)
-│   ├── authApi.js         # Autenticación
-│   ├── clienteApi.js      # API para clientes
-│   ├── repartidorApi.js   # API para repartidores
-│   └── supabaseClient.js  # Configuración de Supabase
-├── components/            # Componentes reutilizables
-│   ├── Boton.js          # Botón personalizado
-│   ├── TarjetaProducto.js # Tarjeta de producto
-│   └── PedidoItem.js     # Item de pedido
-├── context/              # Contextos de React
-│   └── AuthContext.js    # Contexto de autenticación
-├── hooks/                # Custom hooks
-│   └── useCart.js        # Hook del carrito
-├── navigation/           # Configuración de navegación
-│   ├── AppNavigator.js   # Navegador principal
-│   └── AuthStack.js      # Stack de autenticación
-├── screens/              # Pantallas de la aplicación
-│   ├── auth/            # Pantallas de autenticación
-│   ├── cliente/         # Pantallas del cliente
-│   └── repartidor/      # Pantallas del repartidor
-├── App.js               # Punto de entrada
-└── theme.js             # Configuración de tema
+## 🔐 Variables de Entorno
+Crea un archivo `.env` en la raíz:
+```env
+EXPO_PUBLIC_SUPABASE_URL=tu_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=tu_key
 ```
 
-## 🔐 Autenticación y roles
-
-La aplicación maneja dos tipos de usuarios:
-
-### Clientes
-- Pueden registrarse directamente en la app
-- Acceso al catálogo y carrito de compras
-- Historial de pedidos
-
-### Repartidores
-- Deben ser creados por un administrador
-- Acceso a pedidos disponibles y asignados
-- Herramientas de seguimiento y entrega
-
-## 🗄️ Base de datos
-
-La aplicación utiliza Supabase con las siguientes tablas principales:
-- `users`: Información de usuarios y perfiles
-- `productos`: Catálogo de medicamentos
-- `pedidos`: Órdenes de compra
-- `pedido_items`: Items individuales de cada pedido
-
-## 🚀 Scripts disponibles
-
-- `npm start`: Inicia el servidor de desarrollo
-- `npm run android`: Ejecuta en emulador Android
-- `npm run ios`: Ejecuta en emulador iOS
-- `npm run web`: Ejecuta en navegador web
-
-## 🔧 Configuración adicional
-
-### Permisos requeridos
-- **Ubicación**: Para el seguimiento de entregas
-- **Teléfono**: Para llamadas directas a clientes
-- **Internet**: Para conexión con la base de datos
-
-### Configuración de producción
-Para builds de producción, asegúrate de:
-1. Configurar las variables de entorno correctas
-2. Actualizar el `app.config.js` con tu información
-3. Generar y configurar certificados necesarios
-
-## 🤝 Contribución
-
-1. Haz fork del proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -am 'Agrega nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Abre un Pull Request
-
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
-
-## 📞 Soporte
-
-Para soporte técnico o preguntas, contacta al equipo de desarrollo.
+---
+**Cliente:** Farmacia Santa Marta
+**Institución:** Universidad Latina de Costa Rica
+**Tecnología:** React Native + Expo + Android Studio
