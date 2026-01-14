@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.FarmaciaSantaMarta" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <item name="colorPrimary">#4ADE80</item>
+        <item name="colorPrimaryVariant">#22C55E</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="secondaryColor">#3B82F6</item>
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+    </style>
+</resources>
