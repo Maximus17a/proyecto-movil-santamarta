@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Farmacia Santa Marta</string>
+    <string name="title_admin">Panel Administrador</string>
+    <string name="title_client">Realizar Pedido</string>
+    <string name="title_delivery">Entregas Pendientes</string>
+    <string name="btn_login">Iniciar Sesión</string>
+    <string name="btn_scan">Escanear Producto</string>
+    <string name="inventory_count">Productos en Inventario: </string>
+    <string name="order_status">Estado del Pedido: </string>
+</resources>
